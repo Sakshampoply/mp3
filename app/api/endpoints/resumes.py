@@ -1,100 +1,114 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
-import os
-from sqlalchemy.orm import Session
-from typing import List, Optional
-
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from app.services.llm_parser import LLMParser
+from app.models.resume import Candidate, Resume
 from app.db.postgres_client import get_db
+from sqlalchemy.orm import Session
 from app.db.mongo_client import get_resume_collection
+from fastapi import APIRouter, UploadFile, File, Depends
+from app.services.llm_parser import LLMParser
+from app.db.chroma_client import chroma_client
 from app.models.resume import Resume, Candidate
-from app.services.candidates import CandidateService
+from app.db.postgres_client import get_db
+import os
 from app.services.pdf_parser import ResumeParser
+from bson import ObjectId
 
-router = APIRouter()
-candidate_service = CandidateService()
 resume_parser = ResumeParser()
+router = APIRouter()
+llm_parser = LLMParser()
 
-@router.get("/by_skill/")
-def filter_candidates_by_skill(
-    skill: str = Query(..., description="Skill to filter by"),
-    db: Session = Depends(get_db)
-):
-    """Filter candidates by a specific skill"""
-    candidates = candidate_service.filter_candidates_by_skill(db, skill)
-    return {"skill": skill, "count": len(candidates), "candidates": candidates}
 
-@router.get("/rank_for_job/{job_id}")
-def rank_candidates_for_job(
-    job_id: int,
-    limit: int = Query(10, description="Maximum number of candidates to return"),
-    db: Session = Depends(get_db)
-):
-    """Rank candidates based on their match to a specific job"""
-    job = db.query(Resume)  # Note: Adjust if needed
-    job = db.query(Candidate).filter(Candidate.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    ranked_candidates = candidate_service.rank_candidates_for_job(db, job_id, limit)
-    return {"job_id": job_id, "job_title": job.title, "count": len(ranked_candidates), "candidates": ranked_candidates}
+@router.post("/upload", status_code=status.HTTP_201_CREATED)
+async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    try:
+        # Read file contents and validate
+        contents = await file.read()
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in (".pdf", ".docx"):
+            raise HTTPException(400, "Unsupported file type")
 
-@router.post("/upload_resume", status_code=status.HTTP_201_CREATED)
-async def upload_resume(
-    file: UploadFile = File(...),
-    name: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
-    phone: Optional[str] = Form(None),
-    location: Optional[str] = Form(None),
-    db: Session = Depends(get_db)
-):
-    """Upload a resume file, store its raw text in MongoDB, and candidate + resume metadata in PostgreSQL."""
-    # Read file contents and validate extension
-    contents = await file.read()
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in (".pdf", ".docx"):
-        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported file type")
+        # Store raw data in MongoDB first
+        mongo_collection = get_resume_collection()
+        mongo_doc = {
+            "filename": file.filename,
+            "raw_data": contents,
+            "processed": False,
+        }
+        mongo_id = str(mongo_collection.insert_one(mongo_doc).inserted_id)
 
-    # Parse resume bytes
-    result = resume_parser.parse_resume_from_bytes(contents, ext)
-    if not result.get("success", False):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result.get("error", "Failed to parse resume")
-        )
+        try:
+            # Extract text
+            raw_text = resume_parser.extract_text_from_bytes(contents, ext)
+            parsed_data = llm_parser.extract_entities(raw_text)
 
-    raw_text = result["raw_text"]
-    metadata = result["metadata"]  # {'skills': [...], 'experience_years': X, 'education': [...]}
+            if "error" in parsed_data:
+                raise HTTPException(400, detail=parsed_data)
 
-    # Store raw text + metadata in MongoDB
-    resume_collection = get_resume_collection()
-    mongo_doc = {
-        "raw_text": raw_text,
-        "filename": file.filename,
-        "metadata": metadata,
-    }
-    insert_result = resume_collection.insert_one(mongo_doc)
-    mongo_id = insert_result.inserted_id
+            # Check for existing candidate
+            existing_candidate = (
+                db.query(Candidate)
+                .filter(Candidate.email == parsed_data["email"])
+                .first()
+            )
 
-    # Create Candidate record
-    candidate = Candidate(name=name, email=email, phone=phone, location=location)
-    db.add(candidate)
-    db.commit()
-    db.refresh(candidate)
+            if existing_candidate:
+                candidate = existing_candidate
+                action = "updated"
+            else:
+                # Create new candidate
+                candidate = Candidate(
+                    name=parsed_data["name"],
+                    email=parsed_data["email"],
+                    phone=parsed_data.get("phone"),
+                    location=parsed_data.get("location"),
+                )
+                db.add(candidate)
+                db.commit()
+                action = "created"
 
-    # Create Resume record with extracted metadata
-    resume = Resume(
-        candidate_id=candidate.id,
-        mongo_id=str(mongo_id),
-        filename=file.filename,
-        skills=metadata.get("skills"),
-        experience_years=metadata.get("experience_years"),
-        education=metadata.get("education")
-    )
-    db.add(resume)
-    db.commit()
-    db.refresh(resume)
+            db.refresh(candidate)
 
-    return {
-        "resume_id": resume.id,
-        "candidate_id": candidate.id,
-        "mongo_id": str(mongo_id),
-        "filename": file.filename
-    }
+            # Create resume record
+            resume = Resume(
+                candidate_id=candidate.id,
+                mongo_id=mongo_id,
+                filename=file.filename,
+                skills=parsed_data.get("skills", []),
+                experience=parsed_data.get("experience_years", 0),
+                education=parsed_data.get("education", []),
+            )
+            db.add(resume)
+            db.commit()
+            db.refresh(resume)
+
+            # Update MongoDB processed status
+            mongo_collection.update_one(
+                {"_id": ObjectId(mongo_id)}, {"$set": {"processed": True}}
+            )
+
+            return {
+                "message": f"Resume processed successfully (candidate {action})",
+                "resume_id": resume.id,
+                "candidate_id": candidate.id,
+            }
+
+        except Exception as e:
+            # Update MongoDB with error details
+            mongo_collection.update_one(
+                {"_id": ObjectId(mongo_id)},
+                {
+                    "$set": {
+                        "processed": False,
+                        "error": str(e),
+                        "parsed_data": (
+                            parsed_data if "parsed_data" in locals() else None
+                        ),
+                    }
+                },
+            )
+            raise
+
+    except HTTPException as he:
+        raise
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
