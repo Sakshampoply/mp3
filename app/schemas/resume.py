@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -53,20 +53,48 @@ class Resume(ResumeBase):
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
 
 
 class ResumeWithCandidate(Resume):
     candidate: Candidate
-    
+
     class Config:
         from_attributes = True
 
 
 class CandidateWithResumes(Candidate):
     resumes: List[Resume]
-    
+
     class Config:
         from_attributes = True
+
+
+class EducationEntry(BaseModel):
+    degree: str
+    institute: str
+    field: Optional[str] = None
+    duration: Optional[str] = None
+
+
+class ResumeResponse(BaseModel):
+    id: int
+    skills: list[str]
+    experience: int
+    education: List[EducationEntry]
+    filename: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    phone: str | None
+    location: str | None
+    resumes: list[ResumeResponse] = []  # Or use a ResumeResponse schema
+
+    model_config = ConfigDict(from_attributes=True)

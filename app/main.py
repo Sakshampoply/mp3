@@ -4,12 +4,23 @@ from sqlalchemy.orm import Session
 from app.api.endpoints import resumes, jobs, search
 from app.core.config import settings
 from app.db.postgres_client import engine, Base, get_db
-from app.models import resume, job  # Import models to be created
+from app.models import resume, job
+from app.db.postgres_client import Base, engine
+
 
 # Create FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
+
+
+def create_tables():
+    Base.metadata.create_all(bind=engine)
+
+
+if __name__ == "__main__":
+    create_tables()
+    # ... rest of your FastAPI code
 
 # Create database tables
 Base.metadata.create_all(bind=engine)

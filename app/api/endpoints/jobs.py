@@ -5,30 +5,27 @@ from typing import List
 from app.db.postgres_client import get_db
 from app.models.job import Job
 from app.schemas.job import JobCreate, Job as JobSchema, JobUpdate
-from app.services.pdf_parser import ResumeParser  # We'll reuse the skill extraction
+from app.services.skill_extractor import (
+    SkillExtractor,
+)  # We'll reuse the skill extraction
 
 router = APIRouter()
-parser = ResumeParser()  # We'll reuse it for keyword extraction
+skill_extractor = SkillExtractor()
 
 
 @router.post("/", response_model=JobSchema, status_code=status.HTTP_201_CREATED)
-def create_job(
-    job: JobCreate,
-    db: Session = Depends(get_db)
-):
+def create_job(job: JobCreate, db: Session = Depends(get_db)):
     """Create a new job posting"""
     # Extract skills from job description and requirements
     text_to_analyze = f"{job.description} {job.requirements or ''}"
-    skills = parser.extract_skills(text_to_analyze)
-    
+    skills = skill_extractor.extract_skills(text_to_analyze)  # Use correct extractor
+
     # Create the job with extracted metadata
     db_job = Job(
         **job.model_dump(),
         skills_required=skills,
-        # We could add more sophisticated parsing for experience and education
-        # but will keep it simple for now
     )
-    
+
     db.add(db_job)
     db.commit()
     db.refresh(db_job)
@@ -40,22 +37,19 @@ def get_jobs(
     skip: int = 0,
     limit: int = 100,
     active_only: bool = True,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get a list of job postings"""
     query = db.query(Job)
     if active_only:
         query = query.filter(Job.is_active == True)
-    
+
     jobs = query.offset(skip).limit(limit).all()
     return jobs
 
 
 @router.get("/{job_id}", response_model=JobSchema)
-def get_job(
-    job_id: int,
-    db: Session = Depends(get_db)
-):
+def get_job(job_id: int, db: Session = Depends(get_db)):
     """Get a specific job by ID"""
     job = db.query(Job).filter(Job.id == job_id).first()
     if job is None:
@@ -64,51 +58,44 @@ def get_job(
 
 
 @router.put("/{job_id}", response_model=JobSchema)
-def update_job(
-    job_id: int,
-    job_update: JobUpdate,
-    db: Session = Depends(get_db)
-):
+def update_job(job_id: int, job_update: JobUpdate, db: Session = Depends(get_db)):
     """Update a job posting"""
     db_job = db.query(Job).filter(Job.id == job_id).first()
     if db_job is None:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     # Update fields
     update_data = job_update.model_dump(exclude_unset=True)
-    
+
     # If description or requirements are updated, re-extract skills
     if "description" in update_data or "requirements" in update_data:
         # Get the updated description and requirements
         description = update_data.get("description", db_job.description)
         requirements = update_data.get("requirements", db_job.requirements or "")
-        
+
         # Extract skills from updated text
         text_to_analyze = f"{description} {requirements}"
-        skills = parser.extract_skills(text_to_analyze)
-        
+        skills = skill_extractor.extract_skills(text_to_analyze)
+
         # Add skills to update data
         update_data["skills_required"] = skills
-    
+
     # Apply updates
     for key, value in update_data.items():
         setattr(db_job, key, value)
-    
+
     db.commit()
     db.refresh(db_job)
     return db_job
 
 
 @router.delete("/{job_id}", response_model=JobSchema)
-def delete_job(
-    job_id: int,
-    db: Session = Depends(get_db)
-):
+def delete_job(job_id: int, db: Session = Depends(get_db)):
     """Soft delete a job posting by setting is_active to False"""
     db_job = db.query(Job).filter(Job.id == job_id).first()
     if db_job is None:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     db_job.is_active = False
     db.commit()
     db.refresh(db_job)

@@ -9,6 +9,7 @@ client = MongoClient(
     tlsCAFile=certifi.where(),
 )
 
+
 db = client[settings.MONGO_DB_NAME]
 
 

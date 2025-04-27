@@ -11,7 +11,7 @@ from app.models.resume import Base
 
 def init_database():
     try:
-        engine = create_engine(settings.DATABASE_URL)
+        engine = create_engine(settings.POSTGRES_URL)
 
         with engine.connect() as conn:
             # Create vector extension
