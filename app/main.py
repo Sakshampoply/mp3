@@ -1,4 +1,5 @@
 import os
+import uvicorn
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from app.api.endpoints import resumes, jobs, search
@@ -8,7 +9,6 @@ from app.models import resume, job
 from app.db.postgres_client import Base, engine
 
 
-# Create FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
@@ -20,7 +20,7 @@ def create_tables():
 
 if __name__ == "__main__":
     create_tables()
-    # ... rest of your FastAPI code
+
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -64,6 +64,5 @@ def health_check(db: Session = Depends(get_db)):
 
 
 if __name__ == "__main__":
-    import uvicorn
 
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
