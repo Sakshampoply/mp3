@@ -1,8 +1,10 @@
-import ollama
-import json5
-import re
 import logging
-from typing import Dict, Any
+import re
+from typing import Any, Dict
+
+import json5
+import ollama
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -34,7 +36,7 @@ Resume content: {text}"""
         self.extraction_model = settings.EXTRACTION_MODEL
         self.embedding_model = settings.EMBEDDING_MODEL
 
-    def extract_entities(self, text: str) -> Dict[str, Any]:
+    def extract_entities(self, text: str) -> dict[str, Any]:
         """Extract structured data from resume text with error resilience"""
         try:
             if not text.strip():
@@ -79,7 +81,7 @@ Resume content: {text}"""
             .replace("\t", " ")  # Replace tabs
         )
 
-    def _parse_llm_response(self, raw_response: str) -> Dict[str, Any]:
+    def _parse_llm_response(self, raw_response: str) -> dict[str, Any]:
         """Parse and validate LLM JSON response"""
         json_str = ""
         try:

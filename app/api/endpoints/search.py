@@ -1,16 +1,17 @@
 # app/api/endpoints/search.py
-from fastapi import APIRouter, Depends
-from app.services.candidates import CandidateService
-from app.db.postgres_client import get_db
+import logging
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
-from fastapi import HTTPException
+
+from app.api.endpoints.auth import UserRole, get_current_user, require_role
+from app.db.postgres_client import get_db
 from app.models.job import Job
 from app.models.resume import Candidate
-from typing import List
-from app.schemas.resume import CandidateResponse, ResumeResponse
-import logging
-from app.api.endpoints.auth import require_role, UserRole, get_current_user
 from app.models.user import User
+from app.schemas.resume import CandidateResponse, ResumeResponse
+from app.services.candidates import CandidateService
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,13 @@ router = APIRouter()
 candidate_service = CandidateService()
 
 
-@router.get("/rank_candidates", response_model=List[dict])
-async def rank_candidates(job_id: int, db: Session = Depends(get_db), limit: int = 10, current_user: User = Depends(require_role(UserRole.RECRUITER))):
+@router.get("/rank_candidates", response_model=list[dict])
+async def rank_candidates(
+    job_id: int,
+    db: Session = Depends(get_db),
+    limit: int = 10,
+    current_user: User = Depends(require_role(UserRole.RECRUITER)),
+):
     try:
         # Get job details
         job = db.query(Job).filter(Job.id == job_id).first()

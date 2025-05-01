@@ -1,13 +1,14 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class CandidateBase(BaseModel):
     name: str
-    email: EmailStr
-    phone: Optional[str] = None
-    location: Optional[str] = None
+    email: str
+    phone: str | None = None
+    location: str | None = None
 
 
 class CandidateCreate(CandidateBase):
@@ -15,14 +16,14 @@ class CandidateCreate(CandidateBase):
 
 
 class CandidateUpdate(CandidateBase):
-    name: Optional[str] = None
-    email: Optional[EmailStr] = None
+    name: str | None = None
+    email: EmailStr | None = None
 
 
 class Candidate(CandidateBase):
     id: int
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -38,21 +39,21 @@ class ResumeCreate(ResumeBase):
 
 
 class ResumeUpdate(BaseModel):
-    skills: Optional[List[str]] = None
-    experience_years: Optional[float] = None
-    education: Optional[List[Dict[str, Any]]] = None
-    is_active: Optional[bool] = None
+    skills: list[str] | None = None
+    experience_years: float | None = None
+    education: list[dict[str, Any]] | None = None
+    is_active: bool | None = None
 
 
 class Resume(ResumeBase):
     id: int
     mongo_id: str
-    skills: Optional[List[str]] = None
-    experience_years: Optional[float] = None
-    education: Optional[List[Dict[str, Any]]] = None
+    skills: list[str] | None = None
+    experience_years: float | None = None
+    education: list[dict[str, Any]] | None = None
     is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -66,7 +67,7 @@ class ResumeWithCandidate(Resume):
 
 
 class CandidateWithResumes(Candidate):
-    resumes: List[Resume]
+    resumes: list[Resume]
 
     class Config:
         from_attributes = True
@@ -75,15 +76,15 @@ class CandidateWithResumes(Candidate):
 class EducationEntry(BaseModel):
     degree: str
     institute: str
-    field: Optional[str] = None
-    duration: Optional[str] = None
+    field: str | None = None
+    duration: str | None = None
 
 
 class ResumeResponse(BaseModel):
     id: int
     skills: list[str]
     experience: int
-    education: List[EducationEntry]
+    education: list[EducationEntry]
     filename: str
 
     model_config = ConfigDict(from_attributes=True)

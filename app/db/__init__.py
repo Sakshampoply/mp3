@@ -1,5 +1,5 @@
-from .postgres_client import SessionLocal, engine, Base
 from .mongo_client import get_resume_collection
+from .postgres_client import Base, SessionLocal, engine
 
 
 def get_db():

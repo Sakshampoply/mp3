@@ -1,14 +1,15 @@
 import os
+
 import uvicorn
-from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
-from app.api.endpoints import resumes, jobs, search, auth
-from app.core.config import settings
-from app.db.postgres_client import engine, Base, get_db
-from app.models import resume, job
-from app.db.postgres_client import Base, engine
-from app.services.firebase_auth import initialize_firebase
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+
+from app.api.endpoints import auth, jobs, resumes, search
+from app.core.config import settings
+from app.db.postgres_client import Base, engine, get_db
+from app.models import job, resume
+from app.services.firebase_auth import initialize_firebase
 
 app = FastAPI(
     title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json"
@@ -21,6 +22,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -39,9 +41,7 @@ if __name__ == "__main__":
 Base.metadata.create_all(bind=engine)
 
 # Include routers
-app.include_router(
-    auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"]
-)
+app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 
 app.include_router(
     resumes.router, prefix=f"{settings.API_V1_STR}/resumes", tags=["resumes"]

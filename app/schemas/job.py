@@ -1,14 +1,15 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class JobBase(BaseModel):
     title: str
     company: str
-    location: Optional[str] = None
+    location: str | None = None
     description: str
-    requirements: Optional[str] = None
+    requirements: str | None = None
 
 
 class JobCreate(JobBase):
@@ -16,25 +17,25 @@ class JobCreate(JobBase):
 
 
 class JobUpdate(BaseModel):
-    title: Optional[str] = None
-    company: Optional[str] = None
-    location: Optional[str] = None
-    description: Optional[str] = None
-    requirements: Optional[str] = None
-    skills_required: Optional[List[str]] = None
-    experience_required: Optional[int] = None
-    education_required: Optional[List[Dict[str, Any]]] = None
-    is_active: Optional[bool] = None
+    title: str | None = None
+    company: str | None = None
+    location: str | None = None
+    description: str | None = None
+    requirements: str | None = None
+    skills_required: list[str] | None = None
+    experience_required: int | None = None
+    education_required: list[dict[str, Any]] | None = None
+    is_active: bool | None = None
 
 
 class Job(JobBase):
     id: int
-    skills_required: Optional[List[str]] = None
-    experience_required: Optional[int] = None
-    education_required: Optional[List[Dict[str, Any]]] = None
+    skills_required: list[str] | None = None
+    experience_required: int | None = None
+    education_required: list[dict[str, Any]] | None = None
     is_active: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
-    
+    updated_at: datetime | None = None
+
     class Config:
         from_attributes = True

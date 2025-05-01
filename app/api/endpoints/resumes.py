@@ -1,26 +1,23 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, Query
-from app.services.llm_parser import LLMParser
-from app.models.resume import Candidate, Resume
-from app.db.postgres_client import get_db
-from sqlalchemy.orm import Session
-from app.db.mongo_client import get_resume_collection
-from fastapi import APIRouter, UploadFile, File, Depends
-from app.services.llm_parser import LLMParser
-from app.db.chroma_client import chroma_client
-from app.models.resume import Resume, Candidate
-from app.db.postgres_client import get_db
-import os
-from app.services.pdf_parser import ResumeParser
-from bson import ObjectId
-from typing import List
-from app.schemas.resume import CandidateResponse
-from sqlalchemy.orm import joinedload
-from sqlalchemy.sql import func, or_
 import logging
+import os
 import traceback
+from typing import List
+
+from bson import ObjectId
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.sql import func, or_
+
+from app.api.endpoints.auth import UserRole, require_role
 from app.celery_app import process_resume_task
-from app.api.endpoints.auth import require_role, UserRole
+from app.db.chroma_client import chroma_client
+from app.db.mongo_client import get_resume_collection
+from app.db.postgres_client import get_db
+from app.models.resume import Candidate, Resume
 from app.models.user import User
+from app.schemas.resume import CandidateResponse
+from app.services.llm_parser import LLMParser
+from app.services.pdf_parser import ResumeParser
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +30,7 @@ llm_parser = LLMParser()
 async def upload_resume(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.CANDIDATE))
+    current_user: User = Depends(require_role(UserRole.CANDIDATE)),
 ):
     try:
         # Validate file type first
@@ -79,11 +76,11 @@ async def check_upload_status(mongo_id: str):
     }
 
 
-@router.get("/candidates", response_model=List[CandidateResponse])
+@router.get("/candidates", response_model=list[CandidateResponse])
 def filter_candidates_by_skill(
     skills: str = Query(..., description="Comma-separated skills"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.RECRUITER))
+    current_user: User = Depends(require_role(UserRole.RECRUITER)),
 ):
     try:
         # 1. Normalize and validate input

@@ -1,10 +1,11 @@
 # app/celery_app.py
-import os
-from celery import Celery
-from bson import ObjectId
-from sqlalchemy.orm import Session
 import logging
+import os
 from tempfile import NamedTemporaryFile
+
+from bson import ObjectId
+from celery import Celery
+from sqlalchemy.orm import Session
 
 # Initialize Celery first to avoid circular imports
 celery = Celery(
@@ -18,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 # Late imports to avoid circular dependencies
 from app.db import get_db, get_resume_collection
-from app.services.pdf_parser import ResumeParser
-from app.services.llm_parser import LLMParser
 from app.db.chroma_client import chroma_client
 from app.models.resume import Candidate, Resume
+from app.services.llm_parser import LLMParser
+from app.services.pdf_parser import ResumeParser
 
 
 @celery.task(name="process_resume_task", max_retries=3)

@@ -1,11 +1,15 @@
-from sqlalchemy import Column, String, DateTime, Enum
-from sqlalchemy.sql import func
-from app.db.postgres_client import Base
 from enum import Enum as PyEnum
+
+from sqlalchemy import Column, DateTime, Enum, String
+from sqlalchemy.sql import func
+
+from app.db.postgres_client import Base
+
 
 class UserRole(str, PyEnum):
     CANDIDATE = "candidate"
     RECRUITER = "recruiter"
+
 
 class User(Base):
     __tablename__ = "users"

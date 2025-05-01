@@ -1,22 +1,28 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from typing import List
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.api.endpoints.auth import UserRole, get_current_user, require_role
 from app.db.postgres_client import get_db
 from app.models.job import Job
-from app.schemas.job import JobCreate, Job as JobSchema, JobUpdate
-from app.services.skill_extractor import (
-    SkillExtractor,
-)  # We'll reuse the skill extraction
-from app.api.endpoints.auth import require_role, UserRole, get_current_user
 from app.models.user import User
+from app.schemas.job import Job as JobSchema
+from app.schemas.job import JobCreate, JobUpdate
+from app.services.skill_extractor import (  # We'll reuse the skill extraction
+    SkillExtractor,
+)
 
 router = APIRouter()
 skill_extractor = SkillExtractor()
 
 
 @router.post("/", response_model=JobSchema, status_code=status.HTTP_201_CREATED)
-def create_job(job: JobCreate, db: Session = Depends(get_db), current_user: User = Depends(require_role(UserRole.RECRUITER))):
+def create_job(
+    job: JobCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.RECRUITER)),
+):
     """Create a new job posting"""
     # Extract skills from job description and requirements
     text_to_analyze = f"{job.description} {job.requirements or ''}"
@@ -34,13 +40,12 @@ def create_job(job: JobCreate, db: Session = Depends(get_db), current_user: User
     return db_job
 
 
-@router.get("/", response_model=List[JobSchema])
+@router.get("/", response_model=list[JobSchema])
 def get_jobs(
     skip: int = 0,
     limit: int = 100,
     active_only: bool = True,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.CANDIDATE))
 ):
     """Get a list of job postings"""
     query = db.query(Job)
@@ -52,7 +57,11 @@ def get_jobs(
 
 
 @router.get("/{job_id}", response_model=JobSchema)
-def get_job(job_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role(UserRole.RECRUITER))):
+def get_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.RECRUITER)),
+):
     """Get a specific job by ID"""
     job = db.query(Job).filter(Job.id == job_id).first()
     if job is None:
@@ -61,7 +70,12 @@ def get_job(job_id: int, db: Session = Depends(get_db), current_user: User = Dep
 
 
 @router.put("/{job_id}", response_model=JobSchema)
-def update_job(job_id: int, job_update: JobUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_role(UserRole.RECRUITER))):
+def update_job(
+    job_id: int,
+    job_update: JobUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.RECRUITER)),
+):
     """Update a job posting"""
     db_job = db.query(Job).filter(Job.id == job_id).first()
     if db_job is None:
@@ -93,7 +107,11 @@ def update_job(job_id: int, job_update: JobUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{job_id}", response_model=JobSchema)
-def delete_job(job_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role(UserRole.RECRUITER))):
+def delete_job(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.RECRUITER)),
+):
     """Soft delete a job posting by setting is_active to False"""
     db_job = db.query(Job).filter(Job.id == job_id).first()
     if db_job is None:

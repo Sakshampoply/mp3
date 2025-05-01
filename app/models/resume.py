@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, String, JSON, ARRAY, ForeignKey
-from sqlalchemy.orm import relationship
-from app.db.postgres_client import Base
-from app.core.config import settings
+from sqlalchemy import ARRAY, JSON, Column, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
+
+from app.core.config import settings
+from app.db.postgres_client import Base
 
 
 class Candidate(Base):

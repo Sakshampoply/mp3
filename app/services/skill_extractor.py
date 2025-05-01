@@ -1,6 +1,8 @@
-from app.core.config import settings
-import ollama
 import json
+
+import ollama
+
+from app.core.config import settings
 
 
 class SkillExtractor:

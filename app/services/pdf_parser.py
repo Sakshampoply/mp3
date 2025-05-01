@@ -1,8 +1,9 @@
 import os
 import tempfile
-import pypdf
-import docx2txt
 from typing import Optional
+
+import docx2txt
+import pypdf
 
 
 class ResumeParser:

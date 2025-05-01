@@ -1,0 +1,22 @@
+/* Add custom styles */
+.st-emotion-cache-1v0mbdj img {
+    border-radius: 50%;
+}
+
+.st-emotion-cache-16txtl3 {
+    padding: 2rem 1rem;
+}
+
+.stButton button {
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 5px;
+    padding: 0.5rem 1rem;
+}
+
+.stTextInput input,
+.stTextArea textarea {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 0.5rem;
+}

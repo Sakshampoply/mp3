@@ -1,10 +1,11 @@
+from typing import Any, Dict, List
+
 from app.db.chroma_client import chroma_client
 from app.models.resume import Resume
-from typing import List, Dict, Any
 
 
 class CandidateService:
-    def vector_search(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def vector_search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
         try:
             collection = chroma_client.get_collection()
             results = collection.query(
@@ -17,7 +18,7 @@ class CandidateService:
             print(f"Vector search error: {str(e)}")
             return []
 
-    def _format_results(self, chroma_results) -> List[Dict[str, Any]]:
+    def _format_results(self, chroma_results) -> list[dict[str, Any]]:
         formatted = []
         # IDs are always returned even when not explicitly included
         for ids, distances, metadatas, documents in zip(
