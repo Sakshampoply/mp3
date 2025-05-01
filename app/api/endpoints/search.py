@@ -9,6 +9,8 @@ from app.models.resume import Candidate
 from typing import List
 from app.schemas.resume import CandidateResponse, ResumeResponse
 import logging
+from app.api.endpoints.auth import require_role, UserRole, get_current_user
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +20,7 @@ candidate_service = CandidateService()
 
 
 @router.get("/rank_candidates", response_model=List[dict])
-async def rank_candidates(job_id: int, db: Session = Depends(get_db), limit: int = 10):
+async def rank_candidates(job_id: int, db: Session = Depends(get_db), limit: int = 10, current_user: User = Depends(require_role(UserRole.RECRUITER))):
     try:
         # Get job details
         job = db.query(Job).filter(Job.id == job_id).first()

@@ -6,6 +6,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Resume Parser"
     API_V1_STR: str = "/api/v1"
 
+    FIREBASE_API_KEY: str
+    FIREBASE_PROJECT_ID: str
+    FIREBASE_AUTH_DOMAIN: str = ""
+    FIREBASE_SA_KEY_PATH: str = "./serviceAccountKey.json"
+
     # MongoDB Configuration
     MONGO_URI: str
     MONGO_DB_NAME: str

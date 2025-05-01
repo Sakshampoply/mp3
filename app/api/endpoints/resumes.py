@@ -19,6 +19,8 @@ from sqlalchemy.sql import func, or_
 import logging
 import traceback
 from app.celery_app import process_resume_task
+from app.api.endpoints.auth import require_role, UserRole
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,11 @@ llm_parser = LLMParser()
 
 
 @router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
-async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_resume(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.CANDIDATE))
+):
     try:
         # Validate file type first
         contents = await file.read()
@@ -77,6 +83,7 @@ async def check_upload_status(mongo_id: str):
 def filter_candidates_by_skill(
     skills: str = Query(..., description="Comma-separated skills"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.RECRUITER))
 ):
     try:
         # 1. Normalize and validate input
