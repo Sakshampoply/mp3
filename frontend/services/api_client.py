@@ -57,3 +57,12 @@ def api_delete(endpoint, token=None):
     headers = get_auth_header(token) if token else {}
     response = requests.delete(f"{BASE_URL}{endpoint}", headers=headers)
     return handle_response(response)
+
+
+def handle_response(response):
+    try:
+        response.raise_for_status()
+        data = response.json()
+        return data if isinstance(data, (list, dict)) else []
+    except Exception as e:
+        return {"error": str(e)}

@@ -83,7 +83,7 @@ class EducationEntry(BaseModel):
 class ResumeResponse(BaseModel):
     id: int
     skills: list[str]
-    experience: int
+    experience: float
     education: list[EducationEntry]
     filename: str
 

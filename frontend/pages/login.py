@@ -1,5 +1,5 @@
 import streamlit as st
-from services.auth import login
+from frontend.services.auth import login
 
 st.title("Login")
 

@@ -8,11 +8,13 @@ from sqlalchemy.orm import Session
 from app.api.endpoints import auth, jobs, resumes, search
 from app.core.config import settings
 from app.db.postgres_client import Base, engine, get_db
-from app.models import job, resume
+
+# from app.models import job, resume
 from app.services.firebase_auth import initialize_firebase
 
 app = FastAPI(
-    title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    title=settings.PROJECT_NAME,
+    openapi_url=(f"{settings.API_V1_STR}/openapi.json"),
 )
 
 app.add_middleware(
@@ -41,13 +43,21 @@ if __name__ == "__main__":
 Base.metadata.create_all(bind=engine)
 
 # Include routers
-app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
+app.include_router(
+    auth.router,
+    prefix=f"{settings.API_V1_STR}/auth",
+    tags=["auth"],
+)
 
 app.include_router(
     resumes.router, prefix=f"{settings.API_V1_STR}/resumes", tags=["resumes"]
 )
 
-app.include_router(jobs.router, prefix=f"{settings.API_V1_STR}/jobs", tags=["jobs"])
+app.include_router(
+    jobs.router,
+    prefix=f"{settings.API_V1_STR}/jobs",
+    tags=["jobs"],
+)
 
 app.include_router(
     search.router, prefix=f"{settings.API_V1_STR}/search", tags=["search"]

@@ -1,5 +1,5 @@
 import streamlit as st
-from styles.load_css import load_css
+from frontend.styles.load_css import load_css
 
 load_css()
 

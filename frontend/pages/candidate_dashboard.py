@@ -1,5 +1,5 @@
 import streamlit as st
-from services.api_client import api_get
+from frontend.services.api_client import api_get
 
 st.title("Candidate Dashboard")
 

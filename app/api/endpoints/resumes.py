@@ -1,21 +1,17 @@
 import logging
 import os
-import traceback
-from typing import List
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.sql import func, or_
 
 from app.api.endpoints.auth import UserRole, require_role
 from app.celery_app import process_resume_task
-from app.db.chroma_client import chroma_client
 from app.db.mongo_client import get_resume_collection
 from app.db.postgres_client import get_db
-from app.models.resume import Candidate, Resume
+from app.models.resume import Resume
 from app.models.user import User
-from app.schemas.resume import CandidateResponse
+from app.schemas.resume import ResumeResponse
 from app.services.llm_parser import LLMParser
 from app.services.pdf_parser import ResumeParser
 
@@ -76,66 +72,40 @@ async def check_upload_status(mongo_id: str):
     }
 
 
-@router.get("/candidates", response_model=list[CandidateResponse])
-def filter_candidates_by_skill(
-    skills: str = Query(..., description="Comma-separated skills"),
+@router.get("/{resume_id}", response_model=ResumeResponse)
+async def get_resume(
+    resume_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.RECRUITER)),
 ):
+    """
+    Get parsed resume data by ID from PostgreSQL
+    """
     try:
-        # 1. Normalize and validate input
-        search_terms = [s for s in skills.split(",") if s.strip()]
-        logger.debug(f"Normalized search terms: {search_terms}")
-
-        if not search_terms:
-            raise HTTPException(400, "At least one skill required")
-
-        # 2. Build debug query
-        base_query = db.query(Candidate).join(Resume)
-
-        # 3. First: Try exact array matches
-        exact_condition = Resume.skills.op("&&")(search_terms)
-        exact_candidates = (
-            base_query.filter(exact_condition)
-            .options(joinedload(Candidate.resumes))
-            .all()
+        # Get resume with candidate relationship
+        resume = (
+            db.query(Resume)
+            .options(joinedload(Resume.candidate))  # Eager load candidate
+            .filter(Resume.id == resume_id)
+            .first()
         )
-        logger.debug(f"Found {len(exact_candidates)} exact matches")
 
-        # 4. Second: Try fuzzy matches if no exact results
-        candidates = exact_candidates
-        if not candidates:
-            logger.debug("Attempting fuzzy search")
-            fuzzy_condition = (
-                func.similarity(
-                    func.array_to_string(Resume.skills, "|"),  # Use | as separator
-                    "|".join(search_terms),
-                )
-                > 0.1
-            )  # Lower threshold
-
-            candidates = (
-                base_query.filter(fuzzy_condition)
-                .options(joinedload(Candidate.resumes))
-                .order_by(
-                    func.similarity(
-                        func.array_to_string(Resume.skills, "|"), "|".join(search_terms)
-                    ).desc()
-                )
-                .limit(50)  # Safety limit
-                .all()
-            )
-            logger.debug(f"Found {len(candidates)} fuzzy matches")
-
-        # 5. Final verification
-        logger.debug(f"Final candidate count: {len(candidates)}")
-        for candidate in candidates:
-            logger.debug(
-                f"Candidate {candidate.id} skills: {candidate.resumes[0].skills}"
+        if not resume:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found"
             )
 
-        return candidates or []
+        # Convert education entries to consistent format
+        if resume.education:
+            resume.education = [
+                e if isinstance(e, dict) else {"degree": e} for e in resume.education
+            ]
+
+        return resume
 
     except Exception as e:
-        logger.error(f"Search failed: {str(e)}\n{traceback.format_exc()}")
-        raise HTTPException(500, "Search failed")
+        logger.error(f"Error fetching resume: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving resume data",
+        )

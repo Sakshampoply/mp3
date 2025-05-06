@@ -1,7 +1,7 @@
 import time
 
 import streamlit as st
-from services.api_client import api_get, api_post
+from frontend.services.api_client import api_get, api_post
 
 st.title("Upload Resume")
 

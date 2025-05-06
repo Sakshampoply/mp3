@@ -1,4 +1,3 @@
-import firebase_admin
 import requests
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -23,8 +22,7 @@ async def get_current_user(
 
     token = credentials.credentials
     try:
-        # Add debug logging
-        print(f"Verifying token: {token[:50]}...")  # Log first 50 chars
+        print(f"Verifying token: {token[:50]}...")
 
         decoded = auth.verify_id_token(token)
         print(f"Decoded UID: {decoded['uid']}")
@@ -48,7 +46,8 @@ def require_role(required_role: UserRole):
     def role_checker(current_user: User = Depends(get_current_user)):
         if current_user.role != required_role:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
             )
         return current_user
 
@@ -72,7 +71,8 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
     except auth.EmailAlreadyExistsError:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already exists",
         )
 
 
@@ -81,7 +81,11 @@ async def login_user(login_data: FirebaseLogin):
     """Authenticate using Firebase REST API"""
     try:
         response = requests.post(
-            f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={settings.FIREBASE_API_KEY}",
+            (
+                "https://identitytoolkit.googleapis.com/v1/accounts:"
+                "signInWithPassword?key="
+                f"{settings.FIREBASE_API_KEY}"
+            ),
             json={
                 "email": login_data.email,
                 "password": login_data.password,
@@ -104,7 +108,9 @@ async def login_user(login_data: FirebaseLogin):
 
 
 @router.get("/me")
-async def get_current_user_endpoint(current_user: User = Depends(get_current_user)):
+async def get_current_user_endpoint(
+    current_user: User = Depends(get_current_user),
+):
     return {
         "email": current_user.email,
         "role": current_user.role.value,
